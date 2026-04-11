@@ -1,0 +1,46 @@
+{# templates/code4rena_high.md.j2 — Individual High/Medium finding for Code4rena #}
+# [{{ finding.severity }}] {{ finding.title }}
+
+## Summary
+
+{{ finding.description }}
+
+## Vulnerability Detail
+
+**Contract:** `{{ finding.contract }}`
+**Function:** `{{ finding.function }}`
+**Category:** {{ finding.category | replace('_', ' ') | title }}
+
+{{ finding.description }}
+
+{% if finding.hypothesis %}
+### Exploit Chain
+{% for step in finding.hypothesis.chain %}
+{{ loop.index }}. `{{ step }}`
+{% endfor %}
+{% endif %}
+
+## Impact
+
+{{ finding.impact }}
+
+{% if finding.hypothesis %}
+**Confidence Score:** {{ "%.0f" | format(finding.hypothesis.confidence * 100) }}%
+{% endif %}
+
+## Proof of Concept
+
+```solidity
+{{ finding.proof_of_concept }}
+```
+
+{% if finding.forge_output %}
+### Forge Output
+```
+{{ finding.forge_output[:2000] }}
+```
+{% endif %}
+
+## Recommendation
+
+{{ finding.recommendation }}

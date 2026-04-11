@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bloodhound-security"
+version = "0.1.0"
+authors = [
+  { name="Project Bloodhound Team" },
+]
+description = "Mythos-class autonomous smart contract security reasoning engine"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "jinja2>=3.1",
+    "google-generativeai>=0.8.0",
+    "openai>=1.0",
+    "anthropic>=0.30.0",
+    "click>=8.1",
+    "rich>=13.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/bloodhound"
+"Bug Tracker" = "https://github.com/yourusername/bloodhound/issues"
+
+[project.scripts]
+bloodhound = "bloodhound:cli"
+
+[tool.setuptools]
+packages = ["core", "skills"]
+py-modules = ["bloodhound"]
+
+[tool.setuptools.package-data]
+"*" = ["config.yaml", "templates/*.j2"]

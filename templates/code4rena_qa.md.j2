@@ -1,0 +1,28 @@
+{# templates/code4rena_qa.md.j2 — Consolidated QA/Low report for Code4rena #}
+# QA Report — {{ protocol }}
+
+**Total Findings:** {{ findings | length }}
+**Date:** {{ now().strftime('%Y-%m-%d') if now is defined else 'N/A' }}
+
+---
+
+{% for finding in findings %}
+## [{% if finding.severity == 'Low' %}L{% else %}QA{% endif %}-{{ "%02d" | format(loop.index) }}] {{ finding.title }}
+
+**Contract:** `{{ finding.contract }}` | **Function:** `{{ finding.function }}`
+
+{{ finding.description }}
+
+**Impact:** {{ finding.impact }}
+
+{% if finding.proof_of_concept and finding.proof_of_concept != '// Requires manual PoC' %}
+```solidity
+{{ finding.proof_of_concept }}
+```
+{% endif %}
+
+**Recommendation:** {{ finding.recommendation }}
+
+{% if not loop.last %}---{% endif %}
+
+{% endfor %}

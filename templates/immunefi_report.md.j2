@@ -1,0 +1,70 @@
+{# templates/immunefi_report.md.j2 — Impact-driven Immunefi report #}
+{% set attack_vector = finding.category | replace('_', ' ') | title %}
+# [{{ attack_vector }}] in `{{ finding.contract }}::{{ finding.function }}` leads to {{ finding.impact.split('.')[0] }}
+
+## Bug Description
+
+{{ finding.description }}
+
+## Vulnerability Details
+
+**Severity:** {{ finding.severity }}
+**Contract:** `{{ finding.contract }}`
+**Function:** `{{ finding.function }}`
+
+### Intended Behavior
+{% if finding.hypothesis %}
+The protocol intends for the following economic invariant to hold:
+> {{ finding.hypothesis.description }}
+{% else %}
+The protocol is expected to operate without loss of user funds or unauthorized state transitions.
+{% endif %}
+
+### Actual Behavior
+The implementation deviates from the intended behavior:
+
+{{ finding.description }}
+
+{% if finding.hypothesis %}
+### Anomalies Exploited
+{% for anom_id in finding.hypothesis.anomalies_used %}
+- `{{ anom_id }}`
+{% endfor %}
+{% endif %}
+
+## Impact
+
+{{ finding.impact }}
+
+### Economic Collapse Path
+
+{% if finding.hypothesis and finding.hypothesis.chain %}
+The following sequence of operations, when executed atomically or across transactions, leads to economic damage:
+
+{% for step in finding.hypothesis.chain %}
+{{ loop.index }}. Attacker calls `{{ step }}`
+{% endfor %}
+
+**Result:** {{ finding.hypothesis.economic_impact }}
+{% else %}
+{{ finding.impact }}
+{% endif %}
+
+## Proof of Concept
+
+The following Foundry test demonstrates the vulnerability:
+
+```solidity
+{{ finding.proof_of_concept }}
+```
+
+{% if finding.forge_output %}
+### Forge Execution Output
+```
+{{ finding.forge_output[:2000] }}
+```
+{% endif %}
+
+## Recommendation
+
+{{ finding.recommendation }}

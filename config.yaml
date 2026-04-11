@@ -1,0 +1,66 @@
+# Bloodhound Configuration
+# ========================
+# Model-agnostic: set the provider you want to use, or let Bloodhound
+# auto-detect based on available API keys in your environment.
+
+# LLM Provider: "gemini", "openai", "anthropic", or "local"
+# Leave blank to auto-detect from environment variables.
+# provider: gemini
+
+gemini:
+  api_key: ${GEMINI_API_KEY}
+  model: gemini-2.5-pro
+
+openai:
+  # api_key sourced from OPENAI_API_KEY env var
+  model: gpt-4o
+
+anthropic:
+  # api_key sourced from ANTHROPIC_API_KEY env var
+  model: claude-sonnet-4-20250514
+
+local:
+  # Ollama, LM Studio, or any OpenAI-compatible local server
+  base_url: http://localhost:11434/v1
+  model: llama3
+
+# Foundry settings
+foundry:
+  fuzz_runs: 1000
+  fuzz_depth: 50
+  fail_on_revert: false
+
+# Default report mode
+report:
+  default_mode: code4rena  # or "immunefi"
+
+# Domain heuristics configuration
+heuristics:
+  cross_chain:
+    track_fields:
+      - amountSentLD
+      - amountReceivedLD
+      - minAmountLD
+      - amountLD
+    daily_limit_rounding_tolerance: 1e-6
+  economic:
+    vault_functions:
+      - totalAssets
+      - deposit
+      - withdraw
+      - redeem
+      - convertToShares
+      - convertToAssets
+      - mint
+  agent_payment:
+    signature_functions:
+      - ecrecover
+      - ECDSA.recover
+      - SignatureChecker.isValidSignatureNow
+    payment_functions:
+      - releasePayment
+      - claimReward
+      - executeTask
+      - disburse
+      - payout
+      - settle
