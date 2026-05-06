@@ -45,6 +45,7 @@ export const ListHuntsResponseItem = zod.object({
         recommendation: zod.string(),
         category: zod.string(),
         codeSnippet: zod.string().nullish(),
+        proofOfConcept: zod.string().nullish(),
       }),
     )
     .nullish(),
@@ -97,6 +98,7 @@ export const GetHuntResponse = zod.object({
         recommendation: zod.string(),
         category: zod.string(),
         codeSnippet: zod.string().nullish(),
+        proofOfConcept: zod.string().nullish(),
       }),
     )
     .nullish(),
@@ -150,6 +152,7 @@ export const GetHuntStatsResponse = zod.object({
             recommendation: zod.string(),
             category: zod.string(),
             codeSnippet: zod.string().nullish(),
+            proofOfConcept: zod.string().nullish(),
           }),
         )
         .nullish(),

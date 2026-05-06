@@ -27,6 +27,7 @@ export interface Finding {
   recommendation: string;
   category: string;
   codeSnippet?: string | null;
+  proofOfConcept?: string | null;
 }
 
 export const insertHuntSchema = createInsertSchema(huntsTable).omit({ createdAt: true, updatedAt: true });

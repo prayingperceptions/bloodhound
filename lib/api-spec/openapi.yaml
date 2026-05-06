@@ -200,6 +200,9 @@ components:
         codeSnippet:
           type: string
           nullable: true
+        proofOfConcept:
+          type: string
+          nullable: true
       required:
         - id
         - severity

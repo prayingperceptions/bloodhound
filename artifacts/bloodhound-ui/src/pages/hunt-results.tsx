@@ -284,9 +284,20 @@ export function HuntResults() {
                           </div>
                           {finding.codeSnippet && (
                             <div className="space-y-1 pt-2">
-                              <span className="font-mono text-xs text-muted-foreground uppercase block">Code Snippet</span>
+                              <span className="font-mono text-xs text-muted-foreground uppercase block">Vulnerable Code</span>
                               <pre className="bg-black p-4 rounded-md overflow-x-auto text-xs font-mono text-primary/90 border border-white/5">
                                 <code>{finding.codeSnippet}</code>
+                              </pre>
+                            </div>
+                          )}
+                          {finding.proofOfConcept && (
+                            <div className="space-y-1 pt-2">
+                              <span className="font-mono text-xs text-amber-400/80 uppercase block flex items-center gap-1.5">
+                                <Zap className="h-3 w-3" />
+                                Proof of Concept
+                              </span>
+                              <pre className="bg-amber-950/20 border border-amber-500/20 p-4 rounded-md overflow-x-auto text-xs font-mono text-amber-100/80 whitespace-pre-wrap">
+                                <code>{finding.proofOfConcept}</code>
                               </pre>
                             </div>
                           )}

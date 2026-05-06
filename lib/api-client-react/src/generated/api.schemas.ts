@@ -48,6 +48,7 @@ export interface Finding {
   recommendation: string;
   category: string;
   codeSnippet?: string | null;
+  proofOfConcept?: string | null;
 }
 
 export interface Hunt {
