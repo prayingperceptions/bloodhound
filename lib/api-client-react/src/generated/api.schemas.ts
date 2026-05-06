@@ -8,3 +8,84 @@
 export interface HealthStatus {
   status: string;
 }
+
+export type HuntMode = (typeof HuntMode)[keyof typeof HuntMode];
+
+export const HuntMode = {
+  code4rena: "code4rena",
+  immunefi: "immunefi",
+} as const;
+
+export type HuntStatus = (typeof HuntStatus)[keyof typeof HuntStatus];
+
+export const HuntStatus = {
+  pending: "pending",
+  running: "running",
+  complete: "complete",
+  failed: "failed",
+} as const;
+
+export type FindingSeverity =
+  (typeof FindingSeverity)[keyof typeof FindingSeverity];
+
+export const FindingSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+  informational: "informational",
+  gas: "gas",
+} as const;
+
+export interface Finding {
+  id: string;
+  severity: FindingSeverity;
+  title: string;
+  contract: string;
+  function?: string | null;
+  description: string;
+  impact: string;
+  recommendation: string;
+  category: string;
+  codeSnippet?: string | null;
+}
+
+export interface Hunt {
+  id: string;
+  repoUrl: string;
+  repoName: string;
+  mode: HuntMode;
+  status: HuntStatus;
+  contractsFound?: number | null;
+  findings?: Finding[] | null;
+  reportMarkdown?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateHuntBodyMode =
+  (typeof CreateHuntBodyMode)[keyof typeof CreateHuntBodyMode];
+
+export const CreateHuntBodyMode = {
+  code4rena: "code4rena",
+  immunefi: "immunefi",
+} as const;
+
+export interface CreateHuntBody {
+  repoUrl: string;
+  mode: CreateHuntBodyMode;
+}
+
+export interface HuntStats {
+  totalHunts: number;
+  completedHunts: number;
+  totalFindings: number;
+  criticalFindings: number;
+  highFindings: number;
+  recentHunts: Hunt[];
+}
+
+export interface ApiError {
+  error: string;
+}

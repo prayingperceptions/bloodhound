@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: hunts
+    description: Bloodhound security audit hunts
 paths:
   /healthz:
     get:
@@ -24,6 +26,100 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /hunts:
+    get:
+      operationId: listHunts
+      tags: [hunts]
+      summary: List all hunts
+      responses:
+        "200":
+          description: List of hunts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Hunt"
+    post:
+      operationId: createHunt
+      tags: [hunts]
+      summary: Start a new security audit hunt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHuntBody"
+      responses:
+        "201":
+          description: Hunt created and queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hunt"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /hunts/{id}:
+    get:
+      operationId: getHunt
+      tags: [hunts]
+      summary: Get a hunt by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Hunt details with findings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hunt"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /hunts/{id}/progress:
+    get:
+      operationId: getHuntProgress
+      tags: [hunts]
+      summary: SSE stream of hunt progress events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SSE stream of progress events
+          content:
+            text/event-stream: {}
+
+  /hunts/stats:
+    get:
+      operationId: getHuntStats
+      tags: [hunts]
+      summary: Get aggregate statistics across all hunts
+      responses:
+        "200":
+          description: Aggregate stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HuntStats"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +130,127 @@ components:
       required:
         - status
 
+    Hunt:
+      type: object
+      properties:
+        id:
+          type: string
+        repoUrl:
+          type: string
+        repoName:
+          type: string
+        mode:
+          type: string
+          enum: [code4rena, immunefi]
+        status:
+          type: string
+          enum: [pending, running, complete, failed]
+        contractsFound:
+          type: integer
+          nullable: true
+        findings:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/Finding"
+        reportMarkdown:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - repoUrl
+        - repoName
+        - mode
+        - status
+        - createdAt
+        - updatedAt
+
+    Finding:
+      type: object
+      properties:
+        id:
+          type: string
+        severity:
+          type: string
+          enum: [critical, high, medium, low, informational, gas]
+        title:
+          type: string
+        contract:
+          type: string
+        function:
+          type: string
+          nullable: true
+        description:
+          type: string
+        impact:
+          type: string
+        recommendation:
+          type: string
+        category:
+          type: string
+        codeSnippet:
+          type: string
+          nullable: true
+      required:
+        - id
+        - severity
+        - title
+        - contract
+        - description
+        - impact
+        - recommendation
+        - category
+
+    CreateHuntBody:
+      type: object
+      properties:
+        repoUrl:
+          type: string
+        mode:
+          type: string
+          enum: [code4rena, immunefi]
+      required:
+        - repoUrl
+        - mode
+
+    HuntStats:
+      type: object
+      properties:
+        totalHunts:
+          type: integer
+        completedHunts:
+          type: integer
+        totalFindings:
+          type: integer
+        criticalFindings:
+          type: integer
+        highFindings:
+          type: integer
+        recentHunts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Hunt"
+      required:
+        - totalHunts
+        - completedHunts
+        - totalFindings
+        - criticalFindings
+        - highFindings
+        - recentHunts
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

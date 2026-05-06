@@ -14,3 +14,149 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary List all hunts
+ */
+export const ListHuntsResponseItem = zod.object({
+  id: zod.string(),
+  repoUrl: zod.string(),
+  repoName: zod.string(),
+  mode: zod.enum(["code4rena", "immunefi"]),
+  status: zod.enum(["pending", "running", "complete", "failed"]),
+  contractsFound: zod.number().nullish(),
+  findings: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        severity: zod.enum([
+          "critical",
+          "high",
+          "medium",
+          "low",
+          "informational",
+          "gas",
+        ]),
+        title: zod.string(),
+        contract: zod.string(),
+        function: zod.string().nullish(),
+        description: zod.string(),
+        impact: zod.string(),
+        recommendation: zod.string(),
+        category: zod.string(),
+        codeSnippet: zod.string().nullish(),
+      }),
+    )
+    .nullish(),
+  reportMarkdown: zod.string().nullish(),
+  errorMessage: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListHuntsResponse = zod.array(ListHuntsResponseItem);
+
+/**
+ * @summary Start a new security audit hunt
+ */
+export const CreateHuntBody = zod.object({
+  repoUrl: zod.string(),
+  mode: zod.enum(["code4rena", "immunefi"]),
+});
+
+/**
+ * @summary Get a hunt by ID
+ */
+export const GetHuntParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetHuntResponse = zod.object({
+  id: zod.string(),
+  repoUrl: zod.string(),
+  repoName: zod.string(),
+  mode: zod.enum(["code4rena", "immunefi"]),
+  status: zod.enum(["pending", "running", "complete", "failed"]),
+  contractsFound: zod.number().nullish(),
+  findings: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        severity: zod.enum([
+          "critical",
+          "high",
+          "medium",
+          "low",
+          "informational",
+          "gas",
+        ]),
+        title: zod.string(),
+        contract: zod.string(),
+        function: zod.string().nullish(),
+        description: zod.string(),
+        impact: zod.string(),
+        recommendation: zod.string(),
+        category: zod.string(),
+        codeSnippet: zod.string().nullish(),
+      }),
+    )
+    .nullish(),
+  reportMarkdown: zod.string().nullish(),
+  errorMessage: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary SSE stream of hunt progress events
+ */
+export const GetHuntProgressParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary Get aggregate statistics across all hunts
+ */
+export const GetHuntStatsResponse = zod.object({
+  totalHunts: zod.number(),
+  completedHunts: zod.number(),
+  totalFindings: zod.number(),
+  criticalFindings: zod.number(),
+  highFindings: zod.number(),
+  recentHunts: zod.array(
+    zod.object({
+      id: zod.string(),
+      repoUrl: zod.string(),
+      repoName: zod.string(),
+      mode: zod.enum(["code4rena", "immunefi"]),
+      status: zod.enum(["pending", "running", "complete", "failed"]),
+      contractsFound: zod.number().nullish(),
+      findings: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            severity: zod.enum([
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "informational",
+              "gas",
+            ]),
+            title: zod.string(),
+            contract: zod.string(),
+            function: zod.string().nullish(),
+            description: zod.string(),
+            impact: zod.string(),
+            recommendation: zod.string(),
+            category: zod.string(),
+            codeSnippet: zod.string().nullish(),
+          }),
+        )
+        .nullish(),
+      reportMarkdown: zod.string().nullish(),
+      errorMessage: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});

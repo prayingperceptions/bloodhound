@@ -5,18 +5,27 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  ApiError,
+  CreateHuntBody,
+  HealthStatus,
+  Hunt,
+  HuntStats,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -92,6 +101,396 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all hunts
+ */
+export const getListHuntsUrl = () => {
+  return `/api/hunts`;
+};
+
+export const listHunts = async (options?: RequestInit): Promise<Hunt[]> => {
+  return customFetch<Hunt[]>(getListHuntsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListHuntsQueryKey = () => {
+  return [`/api/hunts`] as const;
+};
+
+export const getListHuntsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listHunts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listHunts>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListHuntsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listHunts>>> = ({
+    signal,
+  }) => listHunts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listHunts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListHuntsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listHunts>>
+>;
+export type ListHuntsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all hunts
+ */
+
+export function useListHunts<
+  TData = Awaited<ReturnType<typeof listHunts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listHunts>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListHuntsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Start a new security audit hunt
+ */
+export const getCreateHuntUrl = () => {
+  return `/api/hunts`;
+};
+
+export const createHunt = async (
+  createHuntBody: CreateHuntBody,
+  options?: RequestInit,
+): Promise<Hunt> => {
+  return customFetch<Hunt>(getCreateHuntUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createHuntBody),
+  });
+};
+
+export const getCreateHuntMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createHunt>>,
+    TError,
+    { data: BodyType<CreateHuntBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createHunt>>,
+  TError,
+  { data: BodyType<CreateHuntBody> },
+  TContext
+> => {
+  const mutationKey = ["createHunt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createHunt>>,
+    { data: BodyType<CreateHuntBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createHunt(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateHuntMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createHunt>>
+>;
+export type CreateHuntMutationBody = BodyType<CreateHuntBody>;
+export type CreateHuntMutationError = ErrorType<ApiError>;
+
+/**
+ * @summary Start a new security audit hunt
+ */
+export const useCreateHunt = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createHunt>>,
+    TError,
+    { data: BodyType<CreateHuntBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createHunt>>,
+  TError,
+  { data: BodyType<CreateHuntBody> },
+  TContext
+> => {
+  return useMutation(getCreateHuntMutationOptions(options));
+};
+
+/**
+ * @summary Get a hunt by ID
+ */
+export const getGetHuntUrl = (id: string) => {
+  return `/api/hunts/${id}`;
+};
+
+export const getHunt = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Hunt> => {
+  return customFetch<Hunt>(getGetHuntUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetHuntQueryKey = (id: string) => {
+  return [`/api/hunts/${id}`] as const;
+};
+
+export const getGetHuntQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHunt>>,
+  TError = ErrorType<ApiError>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getHunt>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHuntQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHunt>>> = ({
+    signal,
+  }) => getHunt(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getHunt>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetHuntQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHunt>>
+>;
+export type GetHuntQueryError = ErrorType<ApiError>;
+
+/**
+ * @summary Get a hunt by ID
+ */
+
+export function useGetHunt<
+  TData = Awaited<ReturnType<typeof getHunt>>,
+  TError = ErrorType<ApiError>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getHunt>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHuntQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary SSE stream of hunt progress events
+ */
+export const getGetHuntProgressUrl = (id: string) => {
+  return `/api/hunts/${id}/progress`;
+};
+
+export const getHuntProgress = async (
+  id: string,
+  options?: RequestInit,
+): Promise<unknown> => {
+  return customFetch<unknown>(getGetHuntProgressUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetHuntProgressQueryKey = (id: string) => {
+  return [`/api/hunts/${id}/progress`] as const;
+};
+
+export const getGetHuntProgressQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHuntProgress>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getHuntProgress>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHuntProgressQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHuntProgress>>> = ({
+    signal,
+  }) => getHuntProgress(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHuntProgress>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetHuntProgressQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHuntProgress>>
+>;
+export type GetHuntProgressQueryError = ErrorType<unknown>;
+
+/**
+ * @summary SSE stream of hunt progress events
+ */
+
+export function useGetHuntProgress<
+  TData = Awaited<ReturnType<typeof getHuntProgress>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getHuntProgress>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHuntProgressQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get aggregate statistics across all hunts
+ */
+export const getGetHuntStatsUrl = () => {
+  return `/api/hunts/stats`;
+};
+
+export const getHuntStats = async (
+  options?: RequestInit,
+): Promise<HuntStats> => {
+  return customFetch<HuntStats>(getGetHuntStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetHuntStatsQueryKey = () => {
+  return [`/api/hunts/stats`] as const;
+};
+
+export const getGetHuntStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHuntStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHuntStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHuntStatsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHuntStats>>> = ({
+    signal,
+  }) => getHuntStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHuntStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetHuntStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHuntStats>>
+>;
+export type GetHuntStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get aggregate statistics across all hunts
+ */
+
+export function useGetHuntStats<
+  TData = Awaited<ReturnType<typeof getHuntStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHuntStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHuntStatsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
