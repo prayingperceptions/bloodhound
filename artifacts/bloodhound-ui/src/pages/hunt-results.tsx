@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import { useGetHunt, getGetHuntQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Terminal, AlertTriangle, CheckCircle2, Info, Flame, Zap, Shield, ShieldAlert, Download, Loader2, Activity } from "lucide-react";
+import { Terminal, AlertTriangle, CheckCircle2, Info, Flame, Zap, Shield, ShieldAlert, Download, Loader2, Activity, ChevronLeft } from "lucide-react";
 import { type Finding, HuntStatus } from "@workspace/api-client-react";
+import { DonateButton } from "@/components/donate-modal";
 
 type StreamEvent = {
   phase: string;
@@ -20,14 +21,15 @@ export function HuntResults() {
   const id = params.id as string;
   const queryClient = useQueryClient();
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
+  const [progress, setProgress] = useState(0);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const logEndRef = useRef<HTMLDivElement | null>(null);
 
   const { data: hunt, isLoading, error } = useGetHunt(id, {
     query: {
       enabled: !!id,
       queryKey: getGetHuntQueryKey(id),
       refetchInterval: (query) => {
-        // Poll every 3s if still running or pending to get the final state
         const status = query.state.data?.status;
         return (status === HuntStatus.pending || status === HuntStatus.running) ? 3000 : false;
       }
@@ -36,12 +38,8 @@ export function HuntResults() {
 
   useEffect(() => {
     if (!id) return;
-    
-    // Only connect if it's currently running or pending
     if (hunt?.status === HuntStatus.complete || hunt?.status === HuntStatus.failed) {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
+      if (eventSourceRef.current) eventSourceRef.current.close();
       return;
     }
 
@@ -52,32 +50,30 @@ export function HuntResults() {
       try {
         const data = JSON.parse(event.data) as StreamEvent;
         setStreamEvents((prev) => [...prev, data]);
+        if (data.progress != null) setProgress(data.progress);
         if (data.done) {
           eventSource.close();
           queryClient.invalidateQueries({ queryKey: getGetHuntQueryKey(id) });
         }
-      } catch (err) {
-        console.error("Failed to parse SSE message", err);
-      }
+      } catch {}
     };
 
-    eventSource.onerror = (err) => {
-      console.error("EventSource failed", err);
-      eventSource.close();
-    };
+    eventSource.onerror = () => eventSource.close();
 
-    return () => {
-      eventSource.close();
-    };
+    return () => eventSource.close();
   }, [id, hunt?.status, queryClient]);
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [streamEvents]);
 
   const handleDownload = () => {
     if (!hunt?.reportMarkdown) return;
-    const blob = new Blob([hunt.reportMarkdown], { type: 'text/markdown' });
+    const blob = new Blob([hunt.reportMarkdown], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `bloodhound-report-${hunt.repoName}.md`;
+    a.download = `bloodhound-${hunt.repoName?.replace("/", "-") ?? hunt.id}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -85,7 +81,11 @@ export function HuntResults() {
   };
 
   if (isLoading && !hunt) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   if (error || !hunt) {
@@ -93,14 +93,16 @@ export function HuntResults() {
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <ShieldAlert className="h-12 w-12 text-destructive" />
         <h2 className="text-xl font-mono text-destructive">Intel Not Found</h2>
-        <p className="text-muted-foreground font-mono">The requested operation could not be located.</p>
+        <p className="text-muted-foreground font-mono text-sm">The requested operation could not be located.</p>
+        <Button variant="outline" asChild className="font-mono text-xs">
+          <Link href="/">Back to Command Center</Link>
+        </Button>
       </div>
     );
   }
 
   const isRunning = hunt.status === HuntStatus.pending || hunt.status === HuntStatus.running;
 
-  // Group findings by contract
   const groupedFindings = hunt.findings?.reduce((acc, finding) => {
     const key = finding.contract;
     if (!acc[key]) acc[key] = [];
@@ -108,20 +110,29 @@ export function HuntResults() {
     return acc;
   }, {} as Record<string, Finding[]>) || {};
 
+  const severityCounts = (hunt.findings ?? []).reduce((acc, f) => {
+    acc[f.severity] = (acc[f.severity] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div className="space-y-1">
+          <Link href="/" className="inline-flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors mb-2">
+            <ChevronLeft className="h-3 w-3" />
+            Command Center
+          </Link>
           <h1 className="text-2xl font-bold font-mono tracking-tight flex items-center gap-2">
             <Terminal className="h-5 w-5" />
             OP: {hunt.repoName}
           </h1>
-          <p className="text-sm text-muted-foreground font-mono mt-1">
-            Target: {hunt.repoUrl}
-          </p>
+          <p className="text-sm text-muted-foreground font-mono">{hunt.repoUrl}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={hunt.status} />
+          {isRunning && <DonateButton />}
           {hunt.status === HuntStatus.complete && (
             <Button variant="outline" className="font-mono text-xs h-8" onClick={handleDownload}>
               <Download className="h-3 w-3 mr-2" />
@@ -131,32 +142,42 @@ export function HuntResults() {
         </div>
       </div>
 
+      {/* Running state */}
       {isRunning ? (
         <Card className="border-border/50 bg-black/40 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent animate-[shimmer_2s_infinite]" />
-          <CardHeader>
-            <CardTitle className="font-mono text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              Live Telemetry Feed
-            </CardTitle>
+          <div className="absolute top-0 left-0 h-0.5 bg-primary/30 w-full">
+            <div
+              className="h-full bg-primary transition-all duration-700"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="font-mono text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                Live Telemetry Feed
+              </CardTitle>
+              <span className="font-mono text-xs text-primary">{progress}%</span>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-xs space-y-2 max-h-96 overflow-y-auto bg-black p-4 rounded border border-white/5">
+            <div className="font-mono text-xs space-y-1.5 h-72 overflow-y-auto bg-black p-4 rounded border border-white/5">
               {streamEvents.length === 0 ? (
-                <div className="text-muted-foreground">Initializing connection to auditor agent...</div>
+                <div className="text-muted-foreground animate-pulse">Initializing auditor agent...</div>
               ) : (
                 streamEvents.map((evt, i) => (
-                  <div key={i} className="flex items-start gap-4 text-primary/80 animate-in fade-in duration-300">
-                    <span className="text-muted-foreground shrink-0">[{evt.phase}]</span>
-                    <span>{evt.message}</span>
+                  <div key={i} className="flex items-start gap-3 animate-in fade-in duration-200">
+                    <span className="text-muted-foreground/60 shrink-0 tabular-nums">[{evt.phase}]</span>
+                    <span className="text-primary/80">{evt.message}</span>
                   </div>
                 ))
               )}
+              <div ref={logEndRef} />
             </div>
           </CardContent>
         </Card>
       ) : hunt.status === HuntStatus.failed ? (
-        <Card className="border-destructive bg-destructive/10">
+        <Card className="border-destructive/50 bg-destructive/10">
           <CardHeader>
             <CardTitle className="font-mono text-destructive flex items-center gap-2">
               <ShieldAlert className="h-5 w-5" />
@@ -169,6 +190,7 @@ export function HuntResults() {
         </Card>
       ) : (
         <div className="space-y-8">
+          {/* Stats row */}
           <div className="grid gap-4 md:grid-cols-4">
             <Card className="bg-card/40">
               <CardHeader className="pb-2">
@@ -186,20 +208,40 @@ export function HuntResults() {
                 <div className="text-2xl font-bold font-mono">{hunt.contractsFound || 0}</div>
               </CardContent>
             </Card>
-            <Card className="bg-destructive/10 border-destructive/30">
+            <Card className="bg-destructive/10 border-destructive/30 md:col-span-2">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-mono text-destructive uppercase">Critical / High</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold font-mono text-destructive">
-                  {hunt.findings?.filter(f => f.severity === 'critical' || f.severity === 'high').length || 0}
+                  {hunt.findings?.filter(f => f.severity === "critical" || f.severity === "high").length || 0}
                 </div>
               </CardContent>
             </Card>
           </div>
 
+          {/* Severity summary bar */}
+          {hunt.findings && hunt.findings.length > 0 && (
+            <div className="space-y-2">
+              <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Severity Breakdown</span>
+              <div className="flex gap-3 flex-wrap">
+                {(["critical", "high", "medium", "low", "informational", "gas"] as const).map((sev) =>
+                  severityCounts[sev] ? (
+                    <div key={sev} className="flex items-center gap-1.5">
+                      <SeverityBadge severity={sev} count={severityCounts[sev]} />
+                    </div>
+                  ) : null
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Findings by contract */}
           <div className="space-y-6">
-            <h3 className="font-mono text-lg border-b border-border/50 pb-2">IDENTIFIED THREATS</h3>
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <h3 className="font-mono text-lg">IDENTIFIED THREATS</h3>
+              <DonateButton />
+            </div>
             {Object.keys(groupedFindings).length === 0 ? (
               <p className="font-mono text-muted-foreground text-sm">No vulnerabilities detected.</p>
             ) : (
@@ -230,7 +272,6 @@ export function HuntResults() {
                             <span className="font-mono text-xs text-muted-foreground uppercase block">Description</span>
                             <p className="text-foreground/90">{finding.description}</p>
                           </div>
-                          
                           <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-1">
                               <span className="font-mono text-xs text-muted-foreground uppercase block">Impact</span>
@@ -241,7 +282,6 @@ export function HuntResults() {
                               <p className="text-foreground/80">{finding.recommendation}</p>
                             </div>
                           </div>
-
                           {finding.codeSnippet && (
                             <div className="space-y-1 pt-2">
                               <span className="font-mono text-xs text-muted-foreground uppercase block">Code Snippet</span>
@@ -277,49 +317,22 @@ function StatusBadge({ status }: { status: string }) {
   }
 }
 
-function SeverityBadge({ severity }: { severity: string }) {
+function SeverityBadge({ severity, count }: { severity: string; count?: number }) {
   const getSeverityStyles = (sev: string) => {
     switch (sev) {
-      case 'critical':
-        return {
-          icon: <AlertTriangle className="h-3 w-3 mr-1" />,
-          classes: 'bg-[hsl(var(--severity-critical))]/20 text-[hsl(var(--severity-critical))] border-[hsl(var(--severity-critical))]/50'
-        };
-      case 'high':
-        return {
-          icon: <Flame className="h-3 w-3 mr-1" />,
-          classes: 'bg-[hsl(var(--severity-high))]/20 text-[hsl(var(--severity-high))] border-[hsl(var(--severity-high))]/50'
-        };
-      case 'medium':
-        return {
-          icon: <Activity className="h-3 w-3 mr-1" />,
-          classes: 'bg-[hsl(var(--severity-medium))]/20 text-[hsl(var(--severity-medium))] border-[hsl(var(--severity-medium))]/50'
-        };
-      case 'low':
-        return {
-          icon: <Info className="h-3 w-3 mr-1" />,
-          classes: 'bg-[hsl(var(--severity-low))]/20 text-[hsl(var(--severity-low))] border-[hsl(var(--severity-low))]/50'
-        };
-      case 'gas':
-        return {
-          icon: <Zap className="h-3 w-3 mr-1" />,
-          classes: 'bg-[hsl(var(--severity-gas))]/20 text-[hsl(var(--severity-gas))] border-[hsl(var(--severity-gas))]/50'
-        };
-      case 'informational':
-      default:
-        return {
-          icon: <Info className="h-3 w-3 mr-1" />,
-          classes: 'bg-[hsl(var(--severity-informational))]/20 text-[hsl(var(--severity-informational))] border-[hsl(var(--severity-informational))]/50'
-        };
+      case "critical": return { icon: <AlertTriangle className="h-3 w-3 mr-1" />, classes: "bg-[hsl(var(--severity-critical))]/20 text-[hsl(var(--severity-critical))] border-[hsl(var(--severity-critical))]/50" };
+      case "high":     return { icon: <Flame className="h-3 w-3 mr-1" />,         classes: "bg-[hsl(var(--severity-high))]/20 text-[hsl(var(--severity-high))] border-[hsl(var(--severity-high))]/50" };
+      case "medium":   return { icon: <Activity className="h-3 w-3 mr-1" />,      classes: "bg-[hsl(var(--severity-medium))]/20 text-[hsl(var(--severity-medium))] border-[hsl(var(--severity-medium))]/50" };
+      case "low":      return { icon: <Info className="h-3 w-3 mr-1" />,           classes: "bg-[hsl(var(--severity-low))]/20 text-[hsl(var(--severity-low))] border-[hsl(var(--severity-low))]/50" };
+      case "gas":      return { icon: <Zap className="h-3 w-3 mr-1" />,            classes: "bg-[hsl(var(--severity-gas))]/20 text-[hsl(var(--severity-gas))] border-[hsl(var(--severity-gas))]/50" };
+      default:         return { icon: <Info className="h-3 w-3 mr-1" />,           classes: "bg-[hsl(var(--severity-informational))]/20 text-[hsl(var(--severity-informational))] border-[hsl(var(--severity-informational))]/50" };
     }
   };
-
   const style = getSeverityStyles(severity);
-
   return (
     <Badge variant="outline" className={`font-mono uppercase text-[10px] whitespace-nowrap ${style.classes}`}>
       {style.icon}
-      {severity}
+      {severity}{count != null ? ` (${count})` : ""}
     </Badge>
   );
 }
