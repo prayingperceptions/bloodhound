@@ -198,7 +198,7 @@ export function Dashboard() {
           </CardContent>
           <CardFooter className="p-4 border-t border-border/30">
             <Button variant="link" className="w-full font-mono text-xs text-muted-foreground hover:text-foreground" asChild>
-              <Link href="/hunts">View all operations</Link>
+              <Link href="/">View all operations</Link>
             </Button>
           </CardFooter>
         </Card>
