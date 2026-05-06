@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, Crosshair, Radar, Terminal, Activity, Bug } from "lucide-react";
+import { ShieldAlert, Crosshair, Radar, Terminal, Activity, Bug, Download } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HuntMode } from "@workspace/api-client-react";
 
@@ -185,6 +185,24 @@ export function Dashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <StatusBadge status={hunt.status} />
+                      {hunt.status === "complete" && hunt.reportMarkdown && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Download report"
+                          onClick={() => {
+                            const blob = new Blob([hunt.reportMarkdown!], { type: "text/markdown" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${hunt.repoName?.replace("/", "-") ?? hunt.id}-bloodhound.md`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" asChild>
                         <Link href={`/hunts/${hunt.id}`}>
                           <Terminal className="h-4 w-4" />
