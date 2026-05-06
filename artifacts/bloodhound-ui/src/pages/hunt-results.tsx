@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Terminal, AlertTriangle, CheckCircle2, Info, Flame, Zap, Shield, ShieldAlert, Download, Loader2 } from "lucide-react";
+import { Terminal, AlertTriangle, CheckCircle2, Info, Flame, Zap, Shield, ShieldAlert, Download, Loader2, Activity } from "lucide-react";
 import { type Finding, HuntStatus } from "@workspace/api-client-react";
 
 type StreamEvent = {
