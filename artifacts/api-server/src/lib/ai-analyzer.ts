@@ -1,9 +1,14 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import OpenAI from "openai";
 import type { ContractInfo } from "./solidity-parser";
 import type { HeuristicAnomaly } from "./heuristics";
 import type { Finding } from "@workspace/db";
 import { logger } from "./logger";
 import crypto from "crypto";
+
+const openrouter = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY ?? "",
+});
 
 function buildContractSummary(contracts: ContractInfo[]): string {
   return contracts
@@ -149,17 +154,18 @@ CRITICAL REQUIREMENT: Every finding MUST include a proofOfConcept. For critical 
 
 Report mode: ${mode === "code4rena" ? "Code4rena competitive audit" : "Immunefi bug bounty"}`;
 
-  logger.info({ repoName, mode }, "Sending to Anthropic for AI analysis");
+  logger.info({ repoName, mode }, "Sending to OpenRouter for AI analysis");
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+  const completion = await openrouter.chat.completions.create({
+    model: "anthropic/claude-sonnet-4",
     max_tokens: 16000,
-    messages: [{ role: "user", content: userPrompt }],
-    system: systemPrompt,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
   });
 
-  const responseText =
-    message.content[0].type === "text" ? message.content[0].text : "";
+  const responseText = completion.choices[0]?.message?.content ?? "";
 
   let parsed: {
     findings: Omit<Finding, "id">[];

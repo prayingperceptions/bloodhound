@@ -10,7 +10,7 @@ Autonomous smart contract security auditing engine — paste a GitHub repo URL, 
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks + Zod schemas from OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — session signing
+- Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — session signing, `OPENROUTER_API_KEY` — your OpenRouter key for Claude access
 
 ## Stack
 
@@ -18,7 +18,7 @@ Autonomous smart contract security auditing engine — paste a GitHub repo URL, 
 - API: Express 5 (esbuild CJS bundle)
 - Frontend: React + Vite + Tailwind + shadcn/ui + wouter routing
 - DB: PostgreSQL + Drizzle ORM
-- AI: Anthropic Claude (via `@workspace/integrations-anthropic-ai` Replit proxy — no user key needed)
+- AI: Anthropic Claude via OpenRouter (`openai` SDK pointed at `https://openrouter.ai/api/v1`, model `anthropic/claude-sonnet-4`)
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (OpenAPI → React Query hooks + Zod schemas)
 
@@ -40,7 +40,7 @@ Autonomous smart contract security auditing engine — paste a GitHub repo URL, 
 
 - **Contract-first API**: OpenAPI spec in `lib/api-spec/` drives both server validation (Zod) and client hooks (React Query) via Orval codegen. Run codegen after any spec change.
 - **SSE for progress**: Hunt pipeline emits real-time progress events over Server-Sent Events at `GET /api/hunts/:id/progress`. Frontend uses native `EventSource`. In-memory `Map<huntId, listeners[]>` — not clustered.
-- **AI via Replit proxy**: Anthropic is accessed through `@workspace/integrations-anthropic-ai` — no user API key required; billing flows through Replit.
+- **AI via OpenRouter**: Claude is accessed via OpenRouter using the `openai` SDK pointed at `https://openrouter.ai/api/v1`. Requires `OPENROUTER_API_KEY` secret. Billing flows through your OpenRouter account.
 - **Hunt pipeline**: GitHub API (up to 40 Solidity files) → regex parser → 8 heuristic checks → Claude AI deep analysis → save findings + markdown report to DB.
 - **Two report modes**: `code4rena` (structured competitive audit format) and `immunefi` (bug bounty format). Mode selected at hunt creation time.
 
