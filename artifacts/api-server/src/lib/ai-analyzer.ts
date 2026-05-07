@@ -38,6 +38,58 @@ function buildHeuristicSummary(anomalies: HeuristicAnomaly[]): string {
     .join("\n");
 }
 
+function extractAndParseJson(text: string): { findings: Omit<Finding, "id">[]; summary: string } {
+  // Strategy 1: direct parse (Claude followed instructions perfectly)
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  // Strategy 2: strip outer markdown fences, then parse
+  const fenceStripped = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+  try {
+    return JSON.parse(fenceStripped);
+  } catch {}
+
+  // Strategy 3: extract outermost { ... } by counting balanced braces
+  // This handles cases where Claude adds prose before/after the JSON object
+  let braceStart = -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < fenceStripped.length; i++) {
+    const ch = fenceStripped[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") {
+      if (depth === 0) braceStart = i;
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && braceStart !== -1) {
+        const candidate = fenceStripped.slice(braceStart, i + 1);
+        try {
+          return JSON.parse(candidate);
+        } catch {}
+        break;
+      }
+    }
+  }
+
+  // Strategy 4: Claude used backtick code blocks inside JSON strings — strip them
+  // Replace ```lang\n...\n``` patterns inside what would be string values with the inner content
+  const sanitized = fenceStripped
+    .replace(/```[a-z]*\n([\s\S]*?)```/g, (_, inner) => inner.replace(/\n/g, "\\n").replace(/"/g, '\\"'))
+    .replace(/\n(\s*")/g, ' $1')   // collapse stray real newlines before JSON keys
+    .trim();
+  try {
+    return JSON.parse(sanitized);
+  } catch {}
+
+  throw new Error("All JSON extraction strategies failed");
+}
+
 export async function analyzeWithAI(
   contracts: ContractInfo[],
   anomalies: HeuristicAnomaly[],
@@ -49,7 +101,13 @@ export async function analyzeWithAI(
 
   const systemPrompt = `You are an elite smart contract security auditor with expertise in DeFi protocols, EVM mechanics, and blockchain security. You identify critical vulnerabilities, exploit chains, and economic attack vectors.
 
-You must respond with valid JSON in this exact format:
+CRITICAL OUTPUT RULES — you MUST follow these exactly or the response will be rejected:
+1. Respond ONLY with a single valid JSON object. No markdown, no prose, no explanation outside the JSON.
+2. Do NOT use triple backticks anywhere — not around the JSON, not inside string values. Triple backticks WILL break JSON parsing.
+3. Inside JSON string values, represent newlines as the two-character sequence \\n (backslash + n). Represent any double-quote as \\". Do not use actual newline characters inside strings.
+4. For code in codeSnippet and proofOfConcept fields: write it as a single string with \\n between lines. No markdown fences.
+
+The JSON schema is exactly:
 {
   "findings": [
     {
@@ -61,8 +119,8 @@ You must respond with valid JSON in this exact format:
       "impact": "Specific impact if exploited",
       "recommendation": "Concrete recommendation to fix",
       "category": "Category name (e.g. Reentrancy, Access Control, etc.)",
-      "codeSnippet": "The vulnerable code snippet verbatim, or null",
-      "proofOfConcept": "A step-by-step exploit walkthrough. For critical/high: include a Solidity PoC test contract (Foundry-style) showing the full attack. For medium/low: include numbered attack steps with exact function calls and expected state changes. This field is REQUIRED for all severities — never null."
+      "codeSnippet": "vulnerable code lines separated by \\n, or null",
+      "proofOfConcept": "For critical/high: a Foundry-style PoC test showing the full attack, code lines separated by \\n. For medium/low: numbered attack steps with exact function calls and expected outcomes. REQUIRED for all severities."
     }
   ],
   "summary": "Executive summary of the audit (2-4 sentences)"
@@ -103,20 +161,15 @@ Report mode: ${mode === "code4rena" ? "Code4rena competitive audit" : "Immunefi 
   const responseText =
     message.content[0].type === "text" ? message.content[0].text : "";
 
-  const jsonMatch =
-    responseText.match(/```(?:json)?\s*([\s\S]*?)```/) ??
-    responseText.match(/(\{[\s\S]*\})/);
-
   let parsed: {
     findings: Omit<Finding, "id">[];
     summary: string;
   };
 
   try {
-    const raw = jsonMatch ? jsonMatch[1] : responseText;
-    parsed = JSON.parse(raw);
+    parsed = extractAndParseJson(responseText);
   } catch {
-    logger.error({ responseText }, "Failed to parse AI response as JSON");
+    logger.error({ responseText: responseText.slice(0, 500) }, "Failed to parse AI response as JSON");
     parsed = {
       findings: [
         {
