@@ -56,6 +56,7 @@ export interface Hunt {
   repoUrl: string;
   repoName: string;
   mode: HuntMode;
+  model?: string;
   status: HuntStatus;
   contractsFound?: number | null;
   findings?: Finding[] | null;
@@ -73,9 +74,19 @@ export const CreateHuntBodyMode = {
   immunefi: "immunefi",
 } as const;
 
+export type CreateHuntBodyModel =
+  (typeof CreateHuntBodyModel)[keyof typeof CreateHuntBodyModel];
+
+export const CreateHuntBodyModel = {
+  "anthropic/claude-haiku-45": "anthropic/claude-haiku-4.5",
+  "anthropic/claude-sonnet-4": "anthropic/claude-sonnet-4",
+  "anthropic/claude-opus-4": "anthropic/claude-opus-4",
+} as const;
+
 export interface CreateHuntBody {
   repoUrl: string;
   mode: CreateHuntBodyMode;
+  model?: CreateHuntBodyModel;
 }
 
 export interface HuntStats {

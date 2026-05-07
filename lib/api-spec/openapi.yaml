@@ -142,6 +142,9 @@ components:
         mode:
           type: string
           enum: [code4rena, immunefi]
+        model:
+          type: string
+          default: anthropic/claude-sonnet-4
         status:
           type: string
           enum: [pending, running, complete, failed]
@@ -221,6 +224,13 @@ components:
         mode:
           type: string
           enum: [code4rena, immunefi]
+        model:
+          type: string
+          enum:
+            - anthropic/claude-haiku-4.5
+            - anthropic/claude-sonnet-4
+            - anthropic/claude-opus-4
+          default: anthropic/claude-sonnet-4
       required:
         - repoUrl
         - mode

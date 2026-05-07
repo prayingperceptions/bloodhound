@@ -18,11 +18,14 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List all hunts
  */
+export const listHuntsResponseModelDefault = `anthropic/claude-sonnet-4`;
+
 export const ListHuntsResponseItem = zod.object({
   id: zod.string(),
   repoUrl: zod.string(),
   repoName: zod.string(),
   mode: zod.enum(["code4rena", "immunefi"]),
+  model: zod.string().default(listHuntsResponseModelDefault),
   status: zod.enum(["pending", "running", "complete", "failed"]),
   contractsFound: zod.number().nullish(),
   findings: zod
@@ -59,9 +62,18 @@ export const ListHuntsResponse = zod.array(ListHuntsResponseItem);
 /**
  * @summary Start a new security audit hunt
  */
+export const createHuntBodyModelDefault = `anthropic/claude-sonnet-4`;
+
 export const CreateHuntBody = zod.object({
   repoUrl: zod.string(),
   mode: zod.enum(["code4rena", "immunefi"]),
+  model: zod
+    .enum([
+      "anthropic/claude-haiku-4.5",
+      "anthropic/claude-sonnet-4",
+      "anthropic/claude-opus-4",
+    ])
+    .default(createHuntBodyModelDefault),
 });
 
 /**
@@ -71,11 +83,14 @@ export const GetHuntParams = zod.object({
   id: zod.coerce.string(),
 });
 
+export const getHuntResponseModelDefault = `anthropic/claude-sonnet-4`;
+
 export const GetHuntResponse = zod.object({
   id: zod.string(),
   repoUrl: zod.string(),
   repoName: zod.string(),
   mode: zod.enum(["code4rena", "immunefi"]),
+  model: zod.string().default(getHuntResponseModelDefault),
   status: zod.enum(["pending", "running", "complete", "failed"]),
   contractsFound: zod.number().nullish(),
   findings: zod
@@ -118,6 +133,8 @@ export const GetHuntProgressParams = zod.object({
 /**
  * @summary Get aggregate statistics across all hunts
  */
+export const getHuntStatsResponseRecentHuntsItemModelDefault = `anthropic/claude-sonnet-4`;
+
 export const GetHuntStatsResponse = zod.object({
   totalHunts: zod.number(),
   completedHunts: zod.number(),
@@ -130,6 +147,9 @@ export const GetHuntStatsResponse = zod.object({
       repoUrl: zod.string(),
       repoName: zod.string(),
       mode: zod.enum(["code4rena", "immunefi"]),
+      model: zod
+        .string()
+        .default(getHuntStatsResponseRecentHuntsItemModelDefault),
       status: zod.enum(["pending", "running", "complete", "failed"]),
       contractsFound: zod.number().nullish(),
       findings: zod

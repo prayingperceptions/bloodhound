@@ -99,7 +99,8 @@ export async function analyzeWithAI(
   contracts: ContractInfo[],
   anomalies: HeuristicAnomaly[],
   repoName: string,
-  mode: "code4rena" | "immunefi"
+  mode: "code4rena" | "immunefi",
+  model = "anthropic/claude-sonnet-4"
 ): Promise<{ findings: Finding[]; reportMarkdown: string }> {
   const contractSummary = buildContractSummary(contracts);
   const heuristicSummary = buildHeuristicSummary(anomalies);
@@ -154,10 +155,10 @@ CRITICAL REQUIREMENT: Every finding MUST include a proofOfConcept. For critical 
 
 Report mode: ${mode === "code4rena" ? "Code4rena competitive audit" : "Immunefi bug bounty"}`;
 
-  logger.info({ repoName, mode }, "Sending to OpenRouter for AI analysis");
+  logger.info({ repoName, mode, model }, "Sending to OpenRouter for AI analysis");
 
   const completion = await openrouter.chat.completions.create({
-    model: "anthropic/claude-sonnet-4",
+    model,
     max_tokens: 16000,
     messages: [
       { role: "system", content: systemPrompt },

@@ -8,13 +8,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, Crosshair, Radar, Terminal, Activity, Bug, Download } from "lucide-react";
+import { ShieldAlert, Crosshair, Radar, Terminal, Activity, Bug, Download, Zap, Brain, Cpu } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HuntMode } from "@workspace/api-client-react";
+
+const MODELS = [
+  {
+    id: "anthropic/claude-haiku-4.5",
+    label: "Haiku 4.5",
+    desc: "Fast & cheap — quick triage",
+    icon: Zap,
+    color: "text-[hsl(var(--severity-gas))]",
+  },
+  {
+    id: "anthropic/claude-sonnet-4",
+    label: "Sonnet 4",
+    desc: "Balanced — recommended",
+    icon: Cpu,
+    color: "text-primary",
+  },
+  {
+    id: "anthropic/claude-opus-4",
+    label: "Opus 4",
+    desc: "Deepest analysis — high-value targets",
+    icon: Brain,
+    color: "text-[hsl(var(--severity-high))]",
+  },
+] as const;
+
+type ModelId = typeof MODELS[number]["id"];
 
 export function Dashboard() {
   const [repoUrl, setRepoUrl] = useState("");
   const [mode, setMode] = useState<typeof HuntMode[keyof typeof HuntMode]>(HuntMode.code4rena);
+  const [model, setModel] = useState<ModelId>("anthropic/claude-sonnet-4");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -29,7 +56,7 @@ export function Dashboard() {
     if (!repoUrl) return;
 
     createHunt.mutate(
-      { data: { repoUrl, mode } },
+      { data: { repoUrl, mode, model } },
       {
         onSuccess: (hunt) => {
           toast({
@@ -137,6 +164,33 @@ export function Dashboard() {
                     <SelectItem value={HuntMode.immunefi} className="font-mono">Immunefi</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="font-mono text-xs uppercase tracking-wider">AI_Model</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {MODELS.map((m) => {
+                    const Icon = m.icon;
+                    const active = model === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setModel(m.id)}
+                        className={`flex flex-col items-center gap-1 rounded-md border p-2 text-center transition-all cursor-pointer
+                          ${active
+                            ? "border-primary bg-primary/10"
+                            : "border-border/40 bg-background/30 hover:border-border hover:bg-background/60"
+                          }`}
+                      >
+                        <Icon className={`h-4 w-4 ${active ? m.color : "text-muted-foreground"}`} />
+                        <span className={`font-mono text-[10px] font-bold uppercase ${active ? m.color : "text-muted-foreground"}`}>
+                          {m.label}
+                        </span>
+                        <span className="font-mono text-[9px] text-muted-foreground leading-tight">{m.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <Button 
                 type="submit" 

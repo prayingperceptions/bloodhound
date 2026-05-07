@@ -20,13 +20,23 @@ function parseGithubUrl(url: string): { owner: string; repo: string; ref?: strin
   }
 }
 
+const MAX_SOL_FILES = 50;
+const MAX_REPO_SOL_FILES = 300;
+
 async function fetchGithubApi(url: string): Promise<unknown> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "User-Agent": "bloodhound-security-agent",
   };
+  if (process.env.GITHUB_TOKEN) {
+    headers["Authorization"] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
   const res = await fetch(url, { headers });
   if (!res.ok) {
+    const remaining = res.headers.get("x-ratelimit-remaining");
+    if (res.status === 403 && remaining === "0") {
+      throw new Error("GitHub API rate limit exceeded. Try again later.");
+    }
     throw new Error(`GitHub API error ${res.status}: ${url}`);
   }
   return res.json();
@@ -83,8 +93,14 @@ export async function fetchSolidityFiles(repoUrl: string): Promise<SolidityFile[
     throw new Error("No Solidity files found in repository");
   }
 
-  // Fetch up to 40 files (cap for API + token limits)
-  const filesToFetch = solFiles.slice(0, 40);
+  if (solFiles.length > MAX_REPO_SOL_FILES) {
+    throw new Error(
+      `Repository has ${solFiles.length} Solidity files — too large to audit (limit: ${MAX_REPO_SOL_FILES}). Try linking to a specific subdirectory or branch.`
+    );
+  }
+
+  // Fetch up to MAX_SOL_FILES files
+  const filesToFetch = solFiles.slice(0, MAX_SOL_FILES);
   const results: SolidityFile[] = [];
 
   await Promise.all(

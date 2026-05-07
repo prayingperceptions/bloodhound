@@ -82,7 +82,7 @@ router.post("/hunts", async (req, res): Promise<void> => {
     return;
   }
 
-  const { repoUrl, mode } = parsed.data;
+  const { repoUrl, mode, model } = parsed.data;
   const repoName = extractRepoName(repoUrl);
   const id = crypto.randomUUID();
 
@@ -93,6 +93,7 @@ router.post("/hunts", async (req, res): Promise<void> => {
       repoUrl,
       repoName,
       mode,
+      model: model ?? "anthropic/claude-sonnet-4",
       status: "pending",
     })
     .returning();

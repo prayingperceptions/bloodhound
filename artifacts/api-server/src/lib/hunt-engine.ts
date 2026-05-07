@@ -103,7 +103,8 @@ export async function runHunt(huntId: string): Promise<void> {
       allContracts,
       anomalies,
       hunt.repoName,
-      hunt.mode as "code4rena" | "immunefi"
+      hunt.mode as "code4rena" | "immunefi",
+      hunt.model ?? "anthropic/claude-sonnet-4"
     );
 
     emit(huntId, {

@@ -47,8 +47,10 @@ Autonomous smart contract security auditing engine — paste a GitHub repo URL, 
 ## Product
 
 - Paste any public GitHub repo URL to start an autonomous security hunt
+- Choose AI model: Haiku 4.5 (fast/cheap), Sonnet 4 (balanced default), Opus 4 (deepest)
 - Real-time streaming progress (file fetching → parsing → heuristics → AI analysis)
 - Findings organized by severity: critical, high, medium, low, informational, gas
+- Every finding includes a Proof of Concept (Foundry-style for critical/high, step-by-step for lower)
 - Download complete audit reports as `.md` in Code4rena or Immunefi format
 - Dashboard with aggregate stats (total hunts, findings, critical/high counts)
 - Hunt history with status tracking
@@ -63,6 +65,9 @@ _Populate as you build._
 - Never use `console.log` in server code — use `req.log` in route handlers and `logger` from `./lib/logger` elsewhere.
 - The SSE progress endpoint uses an in-memory listener map — restarting the server loses in-flight hunt listeners (hunts themselves persist in DB).
 - `huntsTable` primary key is `text("id")` (UUID string), not a serial integer.
+- Rate limits: 120 req/min global, 10 hunt creations/hour per IP (express-rate-limit, in-memory — resets on restart).
+- GitHub API: authenticated via `GITHUB_TOKEN` secret (5000 req/hr); without it falls back to 60 req/hr unauthenticated.
+- Repo size guard: rejects repos with >300 Solidity files; fetches up to 50 files for analysis.
 
 ## Pointers
 

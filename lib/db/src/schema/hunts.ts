@@ -7,6 +7,7 @@ export const huntsTable = pgTable("hunts", {
   repoUrl: text("repo_url").notNull(),
   repoName: text("repo_name").notNull(),
   mode: text("mode").notNull().$type<"code4rena" | "immunefi">(),
+  model: text("model").notNull().default("anthropic/claude-sonnet-4"),
   status: text("status").notNull().default("pending").$type<"pending" | "running" | "complete" | "failed">(),
   contractsFound: integer("contracts_found"),
   findings: jsonb("findings").$type<Finding[]>(),
