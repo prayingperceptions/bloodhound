@@ -7,6 +7,9 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Replit proxies requests — trust the first proxy so rate-limit IPs are correct
+app.set("trust proxy", 1);
+
 // Global rate limit: 120 req/min per IP
 const globalLimiter = rateLimit({
   windowMs: 60_000,
