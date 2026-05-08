@@ -1,4 +1,4 @@
-# Bloodhound
+# 🐺 BloodHound 
 
 **Autonomous smart contract security auditing engine.**
 
@@ -6,7 +6,7 @@ Paste a GitHub repo URL, choose your AI model and report format, and get a Code4
 
 ---
 
-## Features
+## BloodHound Features
 
 - **Autonomous audit pipeline** — fetches up to 50 Solidity files, runs 8 static heuristic checks, then sends everything to Claude for deep analysis
 - **Three Claude models** — Haiku 4.5 (fast/cheap), Sonnet 4 (balanced default), Opus 4 (deepest analysis)
