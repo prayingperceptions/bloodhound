@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, count, sql } from "drizzle-orm";
-import { db, huntsTable } from "@workspace/db";
+import { eq, desc, count, and, gte, sql } from "drizzle-orm";
+import { db, huntsTable, donorsTable } from "@workspace/db";
 import {
   CreateHuntBody,
   GetHuntParams,
@@ -12,6 +12,7 @@ import {
 import { runHunt, addProgressListener, removeProgressListener } from "../../lib/hunt-engine";
 import { extractRepoName } from "../../lib/github";
 import { logger } from "../../lib/logger";
+import { getActiveDonor, buildDonationStatus, DONATION_ADDRESS } from "../donations";
 import crypto from "crypto";
 
 const router: IRouter = Router();
@@ -82,6 +83,47 @@ router.post("/hunts", async (req, res): Promise<void> => {
     return;
   }
 
+  const ip = req.ip ?? "unknown";
+
+  // Check hunt quota
+  const donor = await getActiveDonor(ip);
+
+  if (donor) {
+    // Donor tier
+    if (donor.tier !== "lifetime" && donor.huntLimit !== null && donor.huntsUsed >= donor.huntLimit) {
+      const status = buildDonationStatus(donor);
+      res.status(402).json({
+        error: "Hunt quota exhausted for your current donation tier.",
+        donationRequired: true,
+        donationAddress: DONATION_ADDRESS,
+        status,
+      });
+      return;
+    }
+  } else {
+    // Free tier: 1 hunt per day per IP
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [usage] = await db
+      .select({ count: count() })
+      .from(huntsTable)
+      .where(
+        and(
+          eq(huntsTable.ipAddress, ip),
+          gte(huntsTable.createdAt, oneDayAgo)
+        )
+      );
+
+    if ((usage?.count ?? 0) >= 1) {
+      res.status(402).json({
+        error: "Free tier allows 1 hunt per day. Donate ETH to unlock more.",
+        donationRequired: true,
+        donationAddress: DONATION_ADDRESS,
+        status: buildDonationStatus(null),
+      });
+      return;
+    }
+  }
+
   const { repoUrl, mode, model } = parsed.data;
   const repoName = extractRepoName(repoUrl);
   const id = crypto.randomUUID();
@@ -95,10 +137,19 @@ router.post("/hunts", async (req, res): Promise<void> => {
       mode,
       model: model ?? "anthropic/claude-sonnet-4",
       status: "pending",
+      ipAddress: ip,
     })
     .returning();
 
-  req.log.info({ huntId: id, repoUrl }, "Hunt created");
+  // Increment donor hunts_used if applicable
+  if (donor && donor.tier !== "lifetime") {
+    await db
+      .update(donorsTable)
+      .set({ huntsUsed: donor.huntsUsed + 1 })
+      .where(eq(donorsTable.id, donor.id));
+  }
+
+  req.log.info({ huntId: id, repoUrl, ip, tier: donor?.tier ?? "free" }, "Hunt created");
 
   // Run async (don't await)
   runHunt(id).catch((err) => {

@@ -19,20 +19,7 @@ const globalLimiter = rateLimit({
   message: { error: "Too many requests, please try again later." },
 });
 
-// Strict limit on hunt creation: 10 hunts/hour per IP
-const huntCreateLimiter = rateLimit({
-  windowMs: 60 * 60_000,
-  limit: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Hunt limit reached. Max 10 hunts per hour per IP." },
-});
-
 app.use(globalLimiter);
-app.use("/api/hunts", (req, res, next) => {
-  if (req.method === "POST") return huntCreateLimiter(req, res, next);
-  next();
-});
 
 app.use(
   pinoHttp({

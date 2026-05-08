@@ -131,6 +131,75 @@ export const GetHuntProgressParams = zod.object({
 });
 
 /**
+ * @summary Get hunt quota and donation tier for the current IP
+ */
+export const GetDonationStatusResponse = zod.object({
+  tier: zod.enum(["free", "small", "medium", "lifetime"]),
+  huntsRemaining: zod.number().nullish().describe("null means unlimited"),
+  huntsUsed: zod.number(),
+  expiresAt: zod.coerce.date().nullish(),
+  isSponsor: zod.boolean(),
+  donationAddress: zod.string(),
+  tiers: zod.object({
+    small: zod.object({
+      ethMin: zod.number(),
+      hunts: zod.number(),
+      days: zod.number(),
+    }),
+    medium: zod.object({
+      ethMin: zod.number(),
+      hunts: zod.number(),
+      days: zod.number(),
+    }),
+    lifetime: zod.object({
+      ethMin: zod.number(),
+      hunts: zod.string(),
+    }),
+  }),
+});
+
+/**
+ * @summary Verify an ETH donation transaction and unlock hunt quota
+ */
+export const VerifyDonationBody = zod.object({
+  txHash: zod.string().describe("Ethereum mainnet transaction hash"),
+});
+
+export const VerifyDonationResponse = zod.object({
+  tier: zod.enum(["free", "small", "medium", "lifetime"]),
+  huntsRemaining: zod.number().nullish().describe("null means unlimited"),
+  huntsUsed: zod.number(),
+  expiresAt: zod.coerce.date().nullish(),
+  isSponsor: zod.boolean(),
+  donationAddress: zod.string(),
+  tiers: zod.object({
+    small: zod.object({
+      ethMin: zod.number(),
+      hunts: zod.number(),
+      days: zod.number(),
+    }),
+    medium: zod.object({
+      ethMin: zod.number(),
+      hunts: zod.number(),
+      days: zod.number(),
+    }),
+    lifetime: zod.object({
+      ethMin: zod.number(),
+      hunts: zod.string(),
+    }),
+  }),
+});
+
+/**
+ * @summary List lifetime sponsors
+ */
+export const ListSponsorsResponseItem = zod.object({
+  address: zod.string(),
+  since: zod.coerce.date(),
+});
+export const ListSponsorsResponse = zod.array(ListSponsorsResponseItem);
+
+/**
  * @summary Get aggregate statistics across all hunts
  */
 export const getHuntStatsResponseRecentHuntsItemModelDefault = `anthropic/claude-sonnet-4`;

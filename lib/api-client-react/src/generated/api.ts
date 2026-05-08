@@ -19,9 +19,12 @@ import type {
 import type {
   ApiError,
   CreateHuntBody,
+  DonationStatus,
   HealthStatus,
   Hunt,
   HuntStats,
+  Sponsor,
+  VerifyDonationBody,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -416,6 +419,242 @@ export function useGetHuntProgress<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetHuntProgressQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get hunt quota and donation tier for the current IP
+ */
+export const getGetDonationStatusUrl = () => {
+  return `/api/donations/status`;
+};
+
+export const getDonationStatus = async (
+  options?: RequestInit,
+): Promise<DonationStatus> => {
+  return customFetch<DonationStatus>(getGetDonationStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDonationStatusQueryKey = () => {
+  return [`/api/donations/status`] as const;
+};
+
+export const getGetDonationStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDonationStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDonationStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDonationStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDonationStatus>>
+  > = ({ signal }) => getDonationStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDonationStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDonationStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDonationStatus>>
+>;
+export type GetDonationStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get hunt quota and donation tier for the current IP
+ */
+
+export function useGetDonationStatus<
+  TData = Awaited<ReturnType<typeof getDonationStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDonationStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDonationStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Verify an ETH donation transaction and unlock hunt quota
+ */
+export const getVerifyDonationUrl = () => {
+  return `/api/donations/verify`;
+};
+
+export const verifyDonation = async (
+  verifyDonationBody: VerifyDonationBody,
+  options?: RequestInit,
+): Promise<DonationStatus> => {
+  return customFetch<DonationStatus>(getVerifyDonationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(verifyDonationBody),
+  });
+};
+
+export const getVerifyDonationMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyDonation>>,
+    TError,
+    { data: BodyType<VerifyDonationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyDonation>>,
+  TError,
+  { data: BodyType<VerifyDonationBody> },
+  TContext
+> => {
+  const mutationKey = ["verifyDonation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyDonation>>,
+    { data: BodyType<VerifyDonationBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return verifyDonation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyDonationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof verifyDonation>>
+>;
+export type VerifyDonationMutationBody = BodyType<VerifyDonationBody>;
+export type VerifyDonationMutationError = ErrorType<ApiError>;
+
+/**
+ * @summary Verify an ETH donation transaction and unlock hunt quota
+ */
+export const useVerifyDonation = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyDonation>>,
+    TError,
+    { data: BodyType<VerifyDonationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyDonation>>,
+  TError,
+  { data: BodyType<VerifyDonationBody> },
+  TContext
+> => {
+  return useMutation(getVerifyDonationMutationOptions(options));
+};
+
+/**
+ * @summary List lifetime sponsors
+ */
+export const getListSponsorsUrl = () => {
+  return `/api/donations/sponsors`;
+};
+
+export const listSponsors = async (
+  options?: RequestInit,
+): Promise<Sponsor[]> => {
+  return customFetch<Sponsor[]>(getListSponsorsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSponsorsQueryKey = () => {
+  return [`/api/donations/sponsors`] as const;
+};
+
+export const getListSponsorsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSponsors>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSponsors>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSponsorsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listSponsors>>> = ({
+    signal,
+  }) => listSponsors({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSponsors>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSponsorsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSponsors>>
+>;
+export type ListSponsorsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List lifetime sponsors
+ */
+
+export function useListSponsors<
+  TData = Awaited<ReturnType<typeof listSponsors>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSponsors>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSponsorsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -98,6 +98,60 @@ export interface HuntStats {
   recentHunts: Hunt[];
 }
 
+export type DonationStatusTier =
+  (typeof DonationStatusTier)[keyof typeof DonationStatusTier];
+
+export const DonationStatusTier = {
+  free: "free",
+  small: "small",
+  medium: "medium",
+  lifetime: "lifetime",
+} as const;
+
+export type DonationStatusTiersSmall = {
+  ethMin: number;
+  hunts: number;
+  days: number;
+};
+
+export type DonationStatusTiersMedium = {
+  ethMin: number;
+  hunts: number;
+  days: number;
+};
+
+export type DonationStatusTiersLifetime = {
+  ethMin: number;
+  hunts: string;
+};
+
+export type DonationStatusTiers = {
+  small: DonationStatusTiersSmall;
+  medium: DonationStatusTiersMedium;
+  lifetime: DonationStatusTiersLifetime;
+};
+
+export interface DonationStatus {
+  tier: DonationStatusTier;
+  /** null means unlimited */
+  huntsRemaining?: number | null;
+  huntsUsed: number;
+  expiresAt?: string | null;
+  isSponsor: boolean;
+  donationAddress: string;
+  tiers: DonationStatusTiers;
+}
+
+export interface VerifyDonationBody {
+  /** Ethereum mainnet transaction hash */
+  txHash: string;
+}
+
+export interface Sponsor {
+  address: string;
+  since: string;
+}
+
 export interface ApiError {
   error: string;
 }

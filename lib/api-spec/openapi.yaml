@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: hunts
     description: Bloodhound security audit hunts
+  - name: donations
+    description: ETH donation verification and hunt quota
 paths:
   /healthz:
     get:
@@ -106,6 +108,59 @@ paths:
           description: SSE stream of progress events
           content:
             text/event-stream: {}
+
+  /donations/status:
+    get:
+      operationId: getDonationStatus
+      tags: [donations]
+      summary: Get hunt quota and donation tier for the current IP
+      responses:
+        "200":
+          description: Current donation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DonationStatus"
+
+  /donations/verify:
+    post:
+      operationId: verifyDonation
+      tags: [donations]
+      summary: Verify an ETH donation transaction and unlock hunt quota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyDonationBody"
+      responses:
+        "200":
+          description: Donation verified and quota updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DonationStatus"
+        "400":
+          description: Invalid or unrecognized transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /donations/sponsors:
+    get:
+      operationId: listSponsors
+      tags: [donations]
+      summary: List lifetime sponsors
+      responses:
+        "200":
+          description: List of sponsor addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sponsor"
 
   /hunts/stats:
     get:
@@ -259,6 +314,78 @@ components:
         - criticalFindings
         - highFindings
         - recentHunts
+
+    DonationStatus:
+      type: object
+      properties:
+        tier:
+          type: string
+          enum: [free, small, medium, lifetime]
+        huntsRemaining:
+          type: integer
+          nullable: true
+          description: null means unlimited
+        huntsUsed:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        isSponsor:
+          type: boolean
+        donationAddress:
+          type: string
+        tiers:
+          type: object
+          properties:
+            small:
+              type: object
+              properties:
+                ethMin: { type: number }
+                hunts: { type: integer }
+                days: { type: integer }
+              required: [ethMin, hunts, days]
+            medium:
+              type: object
+              properties:
+                ethMin: { type: number }
+                hunts: { type: integer }
+                days: { type: integer }
+              required: [ethMin, hunts, days]
+            lifetime:
+              type: object
+              properties:
+                ethMin: { type: number }
+                hunts: { type: string }
+              required: [ethMin, hunts]
+          required: [small, medium, lifetime]
+      required:
+        - tier
+        - huntsUsed
+        - isSponsor
+        - donationAddress
+        - tiers
+
+    VerifyDonationBody:
+      type: object
+      properties:
+        txHash:
+          type: string
+          description: Ethereum mainnet transaction hash
+      required:
+        - txHash
+
+    Sponsor:
+      type: object
+      properties:
+        address:
+          type: string
+        since:
+          type: string
+          format: date-time
+      required:
+        - address
+        - since
 
     ApiError:
       type: object

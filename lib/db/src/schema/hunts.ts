@@ -13,6 +13,7 @@ export const huntsTable = pgTable("hunts", {
   findings: jsonb("findings").$type<Finding[]>(),
   reportMarkdown: text("report_markdown"),
   errorMessage: text("error_message"),
+  ipAddress: text("ip_address"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

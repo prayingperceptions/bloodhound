@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useGetHuntStats, useListHunts, useCreateHunt, getListHuntsQueryKey, getGetHuntStatsQueryKey } from "@workspace/api-client-react";
+import {
+  useGetHuntStats,
+  useListHunts,
+  useCreateHunt,
+  useGetDonationStatus,
+  useListSponsors,
+  getListHuntsQueryKey,
+  getGetHuntStatsQueryKey,
+  getGetDonationStatusQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,9 +17,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, Crosshair, Radar, Terminal, Activity, Bug, Download, Zap, Brain, Cpu } from "lucide-react";
+import { ShieldAlert, Crosshair, Radar, Terminal, Activity, Bug, Download, Zap, Brain, Cpu, Crown, Clock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HuntMode } from "@workspace/api-client-react";
+import { DonationModal } from "@/components/donation-modal";
 
 const MODELS = [
   {
@@ -42,13 +52,17 @@ export function Dashboard() {
   const [repoUrl, setRepoUrl] = useState("");
   const [mode, setMode] = useState<typeof HuntMode[keyof typeof HuntMode]>(HuntMode.code4rena);
   const [model, setModel] = useState<ModelId>("anthropic/claude-sonnet-4");
+  const [donationModalOpen, setDonationModalOpen] = useState(false);
+  const [isFreeLimit, setIsFreeLimit] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: stats, isLoading: statsLoading } = useGetHuntStats();
   const { data: hunts, isLoading: huntsLoading } = useListHunts();
-  
+  const { data: donationStatus } = useGetDonationStatus();
+  const { data: sponsors } = useListSponsors();
+
   const createHunt = useCreateHunt();
 
   const handleStartHunt = (e: React.FormEvent) => {
@@ -65,9 +79,16 @@ export function Dashboard() {
           });
           queryClient.invalidateQueries({ queryKey: getListHuntsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetHuntStatsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDonationStatusQueryKey() });
           setLocation(`/hunts/${hunt.id}`);
         },
         onError: (err: any) => {
+          const data = err?.response?.data;
+          if (data?.donationRequired) {
+            setIsFreeLimit(data.error?.includes("Free tier") ?? false);
+            setDonationModalOpen(true);
+            return;
+          }
           toast({
             title: "Initialization failed",
             description: err.message || "Failed to start hunt",
@@ -78,13 +99,66 @@ export function Dashboard() {
     );
   };
 
+  const tierBadge = () => {
+    if (!donationStatus) return null;
+    const { tier, huntsRemaining, expiresAt } = donationStatus;
+    if (tier === "free") {
+      return (
+        <Badge variant="outline" className="font-mono text-[10px] text-muted-foreground gap-1">
+          <Clock className="h-3 w-3" />
+          FREE · 1/day
+        </Badge>
+      );
+    }
+    if (tier === "lifetime") {
+      return (
+        <Badge className="font-mono text-[10px] bg-[hsl(var(--severity-high))]/20 text-[hsl(var(--severity-high))] border-[hsl(var(--severity-high))]/40 gap-1">
+          <Crown className="h-3 w-3" />
+          SPONSOR · ∞
+        </Badge>
+      );
+    }
+    const daysLeft = expiresAt ? Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000) : null;
+    return (
+      <Badge className="font-mono text-[10px] bg-primary/10 text-primary border-primary/30 gap-1">
+        <Zap className="h-3 w-3" />
+        {huntsRemaining ?? 0} hunts · {daysLeft}d left
+      </Badge>
+    );
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      <DonationModal
+        open={donationModalOpen}
+        onClose={() => setDonationModalOpen(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: getGetDonationStatusQueryKey() });
+        }}
+        isFreeLimit={isFreeLimit}
+      />
+
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight font-mono flex items-center gap-2">
-          <Terminal className="h-6 w-6" />
-          COMMAND_CENTER
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight font-mono flex items-center gap-2">
+            <Terminal className="h-6 w-6" />
+            COMMAND_CENTER
+          </h1>
+          <div className="flex items-center gap-2">
+            {tierBadge()}
+            {donationStatus?.tier === "free" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="font-mono text-[10px] uppercase h-7 border-[hsl(var(--severity-high))]/40 text-[hsl(var(--severity-high))] hover:bg-[hsl(var(--severity-high))]/10"
+                onClick={() => { setIsFreeLimit(false); setDonationModalOpen(true); }}
+              >
+                <Crown className="h-3 w-3 mr-1" />
+                Unlock
+              </Button>
+            )}
+          </div>
+        </div>
         <p className="text-muted-foreground font-mono text-sm">
           Threat intelligence dashboard. Monitoring smart contract vulnerabilities.
         </p>
@@ -192,8 +266,8 @@ export function Dashboard() {
                   })}
                 </div>
               </div>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full font-mono uppercase tracking-widest group relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90"
                 disabled={createHunt.isPending}
               >
@@ -275,6 +349,35 @@ export function Dashboard() {
           </CardFooter>
         </Card>
       </div>
+
+      {sponsors && sponsors.length > 0 && (
+        <Card className="bg-card/30 border-[hsl(var(--severity-high))]/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="font-mono text-sm flex items-center gap-2 text-[hsl(var(--severity-high))]">
+              <Crown className="h-4 w-4" />
+              LIFETIME_SPONSORS
+            </CardTitle>
+            <CardDescription className="font-mono text-xs">
+              Supporters who donated 1+ ETH. Thank you.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {sponsors.map((s) => (
+                <a
+                  key={s.address}
+                  href={`https://etherscan.io/address/${s.address}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-xs text-[hsl(var(--severity-high))] bg-[hsl(var(--severity-high))]/10 border border-[hsl(var(--severity-high))]/20 rounded px-2 py-1 hover:bg-[hsl(var(--severity-high))]/20 transition-colors"
+                >
+                  {s.address.slice(0, 6)}…{s.address.slice(-4)}
+                </a>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
