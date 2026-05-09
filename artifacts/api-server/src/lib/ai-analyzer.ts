@@ -159,7 +159,7 @@ Report mode: ${mode === "code4rena" ? "Code4rena competitive audit" : "Immunefi 
 
   const completion = await openrouter.chat.completions.create({
     model,
-    max_tokens: 16000,
+    max_tokens: 8000,  // 8k is plenty for 15 findings with PoC; 16k caused excessive latency
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },

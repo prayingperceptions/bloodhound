@@ -17,6 +17,8 @@ import crypto from "crypto";
 
 const router: IRouter = Router();
 
+const GITHUB_URL_RE = /^https:\/\/(www\.)?github\.com\/[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+/;
+
 // GET /hunts
 router.get("/hunts", async (req, res): Promise<void> => {
   const hunts = await db
@@ -83,23 +85,46 @@ router.post("/hunts", async (req, res): Promise<void> => {
     return;
   }
 
+  const { repoUrl, mode, model } = parsed.data;
+
+  // Validate repo URL — must be a proper github.com HTTPS URL
+  if (!GITHUB_URL_RE.test(repoUrl)) {
+    res.status(400).json({ error: "Invalid repository URL. Must be a public GitHub repository (https://github.com/owner/repo)." });
+    return;
+  }
+
   const ip = req.ip ?? "unknown";
 
   // Check hunt quota
   const donor = await getActiveDonor(ip);
 
   if (donor) {
-    // Donor tier
-    if (donor.tier !== "lifetime" && donor.huntLimit !== null && donor.huntsUsed >= donor.huntLimit) {
-      const status = buildDonationStatus(donor);
-      res.status(402).json({
-        error: "Hunt quota exhausted for your current donation tier.",
-        donationRequired: true,
-        donationAddress: DONATION_ADDRESS,
-        status,
-      });
-      return;
+    if (donor.tier !== "lifetime" && donor.huntLimit !== null) {
+      // Atomic increment — WHERE hunts_used < hunt_limit prevents over-quota under concurrency
+      const [updated] = await db
+        .update(donorsTable)
+        .set({ huntsUsed: sql`${donorsTable.huntsUsed} + 1` })
+        .where(
+          and(
+            eq(donorsTable.id, donor.id),
+            sql`${donorsTable.huntsUsed} < ${donor.huntLimit}`
+          )
+        )
+        .returning({ id: donorsTable.id });
+
+      if (!updated) {
+        // Quota exhausted (possibly via race — the atomic WHERE caught it)
+        const status = buildDonationStatus(donor);
+        res.status(402).json({
+          error: "Hunt quota exhausted for your current donation tier.",
+          donationRequired: true,
+          donationAddress: DONATION_ADDRESS,
+          status,
+        });
+        return;
+      }
     }
+    // lifetime tier: no limit check needed
   } else {
     // Free tier: 1 hunt per day per IP
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -124,7 +149,6 @@ router.post("/hunts", async (req, res): Promise<void> => {
     }
   }
 
-  const { repoUrl, mode, model } = parsed.data;
   const repoName = extractRepoName(repoUrl);
   const id = crypto.randomUUID();
 
@@ -140,14 +164,6 @@ router.post("/hunts", async (req, res): Promise<void> => {
       ipAddress: ip,
     })
     .returning();
-
-  // Increment donor hunts_used if applicable
-  if (donor && donor.tier !== "lifetime") {
-    await db
-      .update(donorsTable)
-      .set({ huntsUsed: donor.huntsUsed + 1 })
-      .where(eq(donorsTable.id, donor.id));
-  }
 
   req.log.info({ huntId: id, repoUrl, ip, tier: donor?.tier ?? "free" }, "Hunt created");
 

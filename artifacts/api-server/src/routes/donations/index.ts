@@ -108,22 +108,28 @@ router.post("/donations/verify", async (req, res): Promise<void> => {
     return;
   }
 
-  // Verify transaction on-chain
+  // Verify transaction on-chain (fetch tx + current block in parallel)
   let txData: { to: string; value: string; from: string; blockNumber: string | null } | null = null;
+  let currentBlockHex: string | null = null;
   try {
-    const rpcRes = await fetch(ETH_RPC, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "eth_getTransactionByHash",
-        params: [txHash],
-        id: 1,
+    const [txRes, blockRes] = await Promise.all([
+      fetch(ETH_RPC, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "eth_getTransactionByHash", params: [txHash], id: 1 }),
+        signal: AbortSignal.timeout(10_000),
       }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    const rpcJson = await rpcRes.json() as { result?: { to: string; value: string; from: string; blockNumber: string | null } | null };
-    txData = rpcJson.result ?? null;
+      fetch(ETH_RPC, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 2 }),
+        signal: AbortSignal.timeout(10_000),
+      }),
+    ]);
+    const txJson = await txRes.json() as { result?: { to: string; value: string; from: string; blockNumber: string | null } | null };
+    const blockJson = await blockRes.json() as { result?: string };
+    txData = txJson.result ?? null;
+    currentBlockHex = blockJson.result ?? null;
   } catch (err) {
     req.log.error({ err }, "Failed to reach Ethereum RPC");
     res.status(400).json({ error: "Could not verify transaction — Ethereum RPC unavailable. Try again shortly." });
@@ -138,6 +144,20 @@ router.post("/donations/verify", async (req, res): Promise<void> => {
   if (txData.blockNumber === null) {
     res.status(400).json({ error: "Transaction is still pending. Wait for it to be confirmed and try again." });
     return;
+  }
+
+  // Require at least 12 confirmations to protect against chain re-orgs
+  const MIN_CONFIRMATIONS = 12;
+  if (currentBlockHex) {
+    const txBlock = parseInt(txData.blockNumber, 16);
+    const currentBlock = parseInt(currentBlockHex, 16);
+    const confirmations = currentBlock - txBlock;
+    if (confirmations < MIN_CONFIRMATIONS) {
+      res.status(400).json({
+        error: `Transaction has only ${confirmations} confirmation${confirmations === 1 ? "" : "s"}. Please wait for at least ${MIN_CONFIRMATIONS} confirmations (~3 minutes) before verifying.`,
+      });
+      return;
+    }
   }
 
   if (txData.to?.toLowerCase() !== DONATION_ADDRESS.toLowerCase()) {

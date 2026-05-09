@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { rateLimit } from "express-rate-limit";
 import router from "./routes";
@@ -9,6 +10,22 @@ const app: Express = express();
 
 // Replit proxies requests — trust the first proxy so rate-limit IPs are correct
 app.set("trust proxy", 1);
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // frontend is served separately
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+
+// Restrict CORS to known origins (same Replit domain + localhost dev)
+const allowedOrigins = (process.env.REPLIT_DOMAINS ?? "").split(",").map((d) => `https://${d.trim()}`).filter(Boolean);
+if (process.env.NODE_ENV !== "production") allowedOrigins.push("http://localhost:3000", "http://localhost:5173");
+
+app.use(cors({
+  origin: allowedOrigins.length > 0 ? allowedOrigins : "*",
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+}));
 
 // Global rate limit: 120 req/min per IP
 const globalLimiter = rateLimit({

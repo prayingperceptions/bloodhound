@@ -1,5 +1,5 @@
 import { db, huntsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { fetchSolidityFiles } from "./github";
 import { parseContract } from "./solidity-parser";
 import { runHeuristics } from "./heuristics";
@@ -39,6 +39,35 @@ function emit(huntId: string, event: { phase: string; message: string; progress?
   }
 }
 
+/**
+ * On startup: any hunt that was left in "running" state (e.g. server crash
+ * mid-hunt) will never complete. Mark them failed so the UI shows the correct state.
+ */
+export async function recoverOrphanedHunts(): Promise<void> {
+  try {
+    const orphans = await db
+      .select({ id: huntsTable.id })
+      .from(huntsTable)
+      .where(eq(huntsTable.status, "running"));
+
+    if (orphans.length === 0) return;
+
+    const ids = orphans.map((h) => h.id);
+    await db
+      .update(huntsTable)
+      .set({
+        status: "failed",
+        errorMessage: "Hunt was interrupted — server restarted while hunt was in progress. Please start a new hunt.",
+        updatedAt: new Date(),
+      })
+      .where(inArray(huntsTable.id, ids));
+
+    logger.warn({ count: ids.length, ids }, "Recovered orphaned running hunts on startup");
+  } catch (err) {
+    logger.error({ err }, "Failed to recover orphaned hunts on startup");
+  }
+}
+
 export async function runHunt(huntId: string): Promise<void> {
   logger.info({ huntId }, "Starting hunt");
 
@@ -56,7 +85,7 @@ export async function runHunt(huntId: string): Promise<void> {
 
     emit(huntId, { phase: "shadow", message: "Cloning repository and discovering Solidity files...", progress: 5 });
 
-    // Phase 1: Fetch Solidity files
+    // Phase 1: Fetch Solidity files (with per-file timeouts inside fetchSolidityFiles)
     const solidityFiles = await fetchSolidityFiles(hunt.repoUrl);
 
     emit(huntId, {
@@ -99,13 +128,39 @@ export async function runHunt(huntId: string): Promise<void> {
       progress: 65,
     });
 
-    const { findings, reportMarkdown } = await analyzeWithAI(
-      allContracts,
-      anomalies,
-      hunt.repoName,
-      hunt.mode as "code4rena" | "immunefi",
-      hunt.model ?? "anthropic/claude-sonnet-4"
+    // Send heartbeat progress events every 30s so the UI doesn't appear frozen
+    let heartbeatProgress = 65;
+    const heartbeat = setInterval(() => {
+      heartbeatProgress = Math.min(heartbeatProgress + 3, 88);
+      emit(huntId, {
+        phase: "chain",
+        message: "AI deep-analyzing contracts — this can take a few minutes for large repos...",
+        progress: heartbeatProgress,
+      });
+    }, 30_000);
+
+    // Hard 8-minute wall-clock timeout on AI analysis
+    const aiTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("AI analysis timed out after 8 minutes. Try a smaller repo or a specific subdirectory.")), 8 * 60 * 1000)
     );
+
+    let findings: Awaited<ReturnType<typeof analyzeWithAI>>["findings"];
+    let reportMarkdown: string;
+
+    try {
+      ({ findings, reportMarkdown } = await Promise.race([
+        analyzeWithAI(
+          allContracts,
+          anomalies,
+          hunt.repoName,
+          hunt.mode as "code4rena" | "immunefi",
+          hunt.model ?? "anthropic/claude-sonnet-4"
+        ),
+        aiTimeout,
+      ]));
+    } finally {
+      clearInterval(heartbeat);
+    }
 
     emit(huntId, {
       phase: "report",
