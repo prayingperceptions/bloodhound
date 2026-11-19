@@ -19,6 +19,24 @@ Paste a GitHub repo URL, choose your AI model and report format, and get a Code4
 
 ---
 
+## Pre-Audit Scans
+
+Hire Bloodhound for a human-validated pre-audit scan of your protocol before launch.
+
+| Package | Price | What you get |
+|------|-------|--------------|
+| Standard | $250 | Up to 5 contracts, PDF report with human-validated findings |
+| Full Repo | $450 | Unlimited contracts, PDF report with human-validated findings |
+| 3-Day Pre-Audit Sprint | $1,500 | Highest-risk contracts, report plus one fix re-check |
+
+Every finding is human-validated, and High severity findings include a Foundry PoC.
+
+**Order:** email christopherperceptions@gmail.com or DM [@PerceptionsPray](https://x.com/PerceptionsPray) on X. **Payment:** Stripe link or USDC.
+
+The free daily hunt and donation tiers below stay available for everyone.
+
+---
+
 ## Access Tiers
 
 | Tier | Donation | Hunts | Duration |
