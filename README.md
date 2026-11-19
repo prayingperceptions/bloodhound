@@ -31,7 +31,7 @@ Hire Bloodhound for a human-validated pre-audit scan of your protocol before lau
 
 Every finding is human-validated, and High severity findings include a Foundry PoC.
 
-**Order:** email christopherperceptions@gmail.com or DM [@PerceptionsPray](https://x.com/PerceptionsPray) on X. **Payment:** Stripe link or USDC.
+**Order:** email prayingperceptions@gmail.com or DM [@PerceptionsPray](https://x.com/PerceptionsPray) on X. **Payment:** Stripe link or USDC.
 
 The free daily hunt and donation tiers below stay available for everyone.
 

@@ -100,4 +100,4 @@ This is a sample pre-audit scan, not a full audit. It covers the repository as c
 
 ---
 
-*Bloodhound pre-audit scans: Standard $250 (up to 5 contracts), Full Repo $450 (unlimited contracts), 3-Day Pre-Audit Sprint $1,500. Every finding is human-validated, and High severity findings include a Foundry PoC. Order: christopherperceptions@gmail.com or DM @PerceptionsPray on X. Payment: Stripe link or USDC.*
+*Bloodhound pre-audit scans: Standard $250 (up to 5 contracts), Full Repo $450 (unlimited contracts), 3-Day Pre-Audit Sprint $1,500. Every finding is human-validated, and High severity findings include a Foundry PoC. Order: prayingperceptions@gmail.com or DM @PerceptionsPray on X. Payment: Stripe link or USDC.*
